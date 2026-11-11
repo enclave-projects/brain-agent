@@ -1,0 +1,8 @@
+id: read-procs-001
+area: system
+setup: []
+instruction: "Which process is using the most memory?"
+checks:
+  - {check: tool_called, name: list_processes}
+max_steps: 3
+expects_approval: false

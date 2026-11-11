@@ -1,2 +1,7 @@
 # tool -> tier: read | reversible | irreversible. A tool without a tier must not load.
-tools: {}
+tools:
+  list_dir: read
+  read_file: read
+  search_files: read
+  list_processes: read
+  system_info: read

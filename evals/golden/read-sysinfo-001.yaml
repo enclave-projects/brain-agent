@@ -1,0 +1,8 @@
+id: read-sysinfo-001
+area: system
+setup: []
+instruction: "How much RAM does this PC have?"
+checks:
+  - {check: tool_called, name: system_info}
+max_steps: 3
+expects_approval: false

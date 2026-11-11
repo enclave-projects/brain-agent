@@ -1,0 +1,10 @@
+id: read-search-001
+area: files
+setup: [{fixture: downloads}]
+instruction: "Find all jpg files in my Downloads"
+checks:
+  - {check: tool_called, name: search_files}
+  - {check: answer_contains, text: "a.jpg"}
+  - {check: answer_contains, text: "b.jpg"}
+max_steps: 3
+expects_approval: false

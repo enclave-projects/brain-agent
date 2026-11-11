@@ -13,3 +13,8 @@ thresholds:
 step_limit: 15
 allowed_roots:
   - sandbox
+read_max_bytes: 200000
+data_dir: .brain-data   # Windows: set to %LOCALAPPDATA%/brain-agent
+# Until Phase 4 is green, real folders are stood in for by fixtures under sandbox/.
+aliases:
+  Downloads: sandbox/Downloads

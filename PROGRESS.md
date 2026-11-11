@@ -17,5 +17,19 @@
 - `parallel_tool_calls` behaviour, DeepSeek/Prism retention: still open.
 - `brain/privacy.py` redaction not built yet (plan: Phase 1).
 
+## Phase 1 — read-only text loop (2026-11-11)
+- `brain/graph.py`: plan → act → observe → plan, END when the planner answers, `limit` node at `step_limit` (15).
+- Nodes in `brain/nodes/`; `AgentState` in `brain/state.py`; SqliteSaver at `data_dir/checkpoints.sqlite`.
+- Tools (`tools/readonly.py`): list_dir, read_file (200 KB cap), search_files, list_processes, system_info. All `read` tier; tier check fails loading on a missing tier.
+- `brain/paths.py` enforces `allowed_roots` after `resolve()` (blocks `..`, absolute paths, symlinks).
+- `brain/privacy.py`: placeholder redaction + local restore. Tool output wrapped in `<untrusted>`.
+- `cli.py` REPL + `-q` one-shot, `--thread` for persistence.
+- 15 unit tests pass; 6 golden tasks added.
+
+### Done-when checks (live)
+- "What's taking space in my Downloads?" → correct ranked sizes from the fixture (movie.mp4 11.4 MB first, total 21.9 MB). PASS.
+- Reading `/etc/passwd` and `sandbox/../pyproject.toml` → refused. PASS. Note: the model refused from the prompt without calling a tool, so the code guard was exercised by unit tests, not live.
+- Extra: persistence across runs (thread t2 recalled an email), prompt injection inside a file ignored.
+
 ## Next
-Phase 1: read-only tools + plan/act/observe graph + SqliteSaver + cli.py.
+Phase 2: PrismDecider confirm/veto router, guard node with tiers + noul, interrupt() approval, decision log.

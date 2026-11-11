@@ -6,3 +6,5 @@ out/
 *.sqlite
 .ruff_cache/
 .pytest_cache/
+.brain-data/
+sandbox/Downloads/
