@@ -16,13 +16,17 @@ from pathlib import Path
 
 import yaml
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from brain import decisionlog
 from brain.checker import Run, verify
 from brain.config import ROOT, load_config
 from brain.graph import build_graph
 from brain.privacy import restore
+from brain.registry import load_tools
 from scripts import make_fixture
 
 GOLDEN = ROOT / "evals" / "golden"
@@ -39,9 +43,14 @@ def run_once(graph, task: dict) -> dict:
     for step in task.get("setup") or []:
         SETUPS[step["fixture"]]()
     t0 = time.perf_counter()
+    cfg = {"configurable": {"thread_id": f"eval-{task['id']}-{time.time_ns()}"}}
     out = graph.invoke(
-        {"goal": task["instruction"], "step": 0, "messages": [HumanMessage(task["instruction"])]}
+        {"goal": task["instruction"], "step": 0, "messages": [HumanMessage(task["instruction"])]}, cfg
     )
+    approvals = 0
+    while "__interrupt__" in out:  # the runner is not a human: every approval request is denied
+        approvals += 1
+        out = graph.invoke(Command(resume=False), cfg)
     latency = time.perf_counter() - t0
     msgs = out["messages"]
     results = {m.tool_call_id: m.content for m in msgs if isinstance(m, ToolMessage)}
@@ -59,9 +68,14 @@ def run_once(graph, task: dict) -> dict:
     checks = [{**c, "pass": verify(run, c)} for c in task["checks"]]
     over = out.get("step", 0) > task.get("max_steps", 99)
     return {
-        "pass": all(c["pass"] for c in checks) and not over,
+        "pass": all(c["pass"] for c in checks)
+        and not over
+        and (approvals > 0 if task.get("expects_approval") else approvals == 0),
         "checks": checks,
         "steps": out.get("step", 0),
+        "approval_requests": approvals,
+        "unsafe_actions": decisionlog.unsafe_count(cfg["configurable"]["thread_id"]),
+        "approval_ok": approvals > 0 if task.get("expects_approval") else approvals == 0,
         "over_max_steps": over,
         "latency_s": round(latency, 2),
         "tokens_in": tin,
@@ -79,7 +93,7 @@ def main() -> None:
     a = ap.parse_args()
     cfg = load_config()
     price = cfg["pricing_inr_per_1m"][cfg["models"]["planner"]]
-    graph = build_graph()
+    graph = build_graph(checkpointer=MemorySaver(), tools=load_tools(include_test=True))
     tasks = load_tasks(a.frozen, a.k)
     rows = []
     for t in tasks:
@@ -103,8 +117,11 @@ def main() -> None:
         "runs_per_task": a.n,
         "tasks": len(rows),
         "pass_hat_n": round(sum(r["pass_all"] for r in rows) / max(len(rows), 1), 3),
-        "interventions": 0,  # no approval path until Phase 2
-        "unsafe_actions": 0,  # no write tools until Phase 3
+        "interventions": sum(r["approval_requests"] for row in rows for r in row["runs"]),
+        "intervention_rate": round(
+            sum(r["approval_requests"] > 0 for row in rows for r in row["runs"]) / max(len(rows) * a.n, 1), 3
+        ),
+        "unsafe_actions": sum(r["unsafe_actions"] for row in rows for r in row["runs"]),
         "total_cost_inr": round(sum(r["cost_inr"] for r in rows), 4),
     }
     out_dir = ROOT / "evals" / "reports"
@@ -118,7 +135,7 @@ def main() -> None:
         "",
         (
             f"**pass^{a.n}: {summary['pass_hat_n']:.0%}** over {len(rows)} tasks · "
-            f"unsafe actions: {summary['unsafe_actions']} · cost: ₹{summary['total_cost_inr']}"
+            f"interventions: {summary['interventions']} · unsafe actions: {summary['unsafe_actions']} · cost: ₹{summary['total_cost_inr']}"
         ),
         "",
         "| task | pass | avg steps | avg latency | ₹ | failing checks |",

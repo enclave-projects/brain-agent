@@ -83,7 +83,7 @@ def _call(name, args, i=0):
     return AIMessage("", tool_calls=[{"id": f"c{i}", "name": name, "args": args, "type": "tool_call"}])
 
 
-def test_graph_round_trip_and_redaction(dl):
+def test_graph_round_trip_and_redaction(dl, decider):
     seen = []
 
     class Spy(_Fake):
@@ -92,31 +92,35 @@ def test_graph_round_trip_and_redaction(dl):
             return super()._generate(messages, *a, **k)
 
     llm = Spy(messages=iter([_call("list_dir", {"path": "sandbox/Downloads"}), AIMessage("done")]))
-    out = build_graph(llm).invoke({"messages": [HumanMessage("x@y.com: what's in Downloads?")], "step": 0})
+    out = build_graph(llm, decider=decider).invoke(
+        {"messages": [HumanMessage("x@y.com: what's in Downloads?")], "step": 0}
+    )
     assert out["messages"][-1].content == "done" and out["step"] == 1
     tool_msg = out["messages"][2]
     assert tool_msg.content.startswith('<untrusted source="tool:list_dir">')
     assert all("x@y.com" not in s for s in seen)
 
 
-def test_placeholder_restored_before_tool(dl):
+def test_placeholder_restored_before_tool(dl, decider):
     (dl / "sandbox" / "Downloads" / "9876543210.txt").write_text("phone-named file")
     tag = redact("9876543210", m := {})
     llm = _Fake(
         messages=iter([_call("read_file", {"path": f"sandbox/Downloads/{tag}.txt"}), AIMessage("ok")])
     )
-    out = build_graph(llm).invoke({"messages": [HumanMessage("read 9876543210.txt")], "step": 0})
+    out = build_graph(llm, decider=decider).invoke(
+        {"messages": [HumanMessage("read 9876543210.txt")], "step": 0}
+    )
     body = json.loads(out["messages"][2].content.split("\n", 1)[1].rsplit("\n", 1)[0])
     assert body["ok"] and body["data"]["text"] == "phone-named file"
     assert m
 
 
-def test_step_limit(dl, monkeypatch):
+def test_step_limit(dl, monkeypatch, decider):
     import brain.graph as g
 
     monkeypatch.setattr(g, "load_config", lambda: {"step_limit": 3})
     llm = _Fake(messages=iter([_call("system_info", {}, i) for i in range(10)]))
-    out = build_graph(llm).invoke({"messages": [HumanMessage("loop")], "step": 0})
+    out = build_graph(llm, decider=decider).invoke({"messages": [HumanMessage("loop")], "step": 0})
     assert out["step"] == 3 and out["messages"][-1].content == STEP_LIMIT_MSG
 
 

@@ -16,4 +16,7 @@ class AgentState(TypedDict, total=False):
     plan: str
     last_result: dict[str, Any]
     step: int
+    prism: dict[str, Any]  # router result for the current proposal
+    guard: dict[str, Any]  # guard decision for the current proposal
+    last_veto: str | None
     pii_map: Annotated[dict[str, str], merge_dict]  # local only, never sent

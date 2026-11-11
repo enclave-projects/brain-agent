@@ -27,3 +27,4 @@ pricing_inr_per_1m:     # from docs/API_NOTES.md
   deepseekv4.1-flash-1017: {input: 14, output: 55}
   deepseekv4.1-flash-1017-interactive: {input: 25, output: 105}
   sarvam-prism: {input: 4, output: 0}
+enable_test_tools: false   # stub reversible/irreversible tools for Phase 2 tests; never real actions

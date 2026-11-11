@@ -5,3 +5,6 @@ tools:
   search_files: read
   list_processes: read
   system_info: read
+  # Phase 2 test stubs (loaded only when enable_test_tools is true). They change nothing on disk.
+  test_rename: reversible
+  test_delete: irreversible

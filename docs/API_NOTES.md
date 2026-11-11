@@ -97,6 +97,7 @@ Source: https://docs.sarvam.ai/api/token-factory/models/sarvam-prism
   `{"type": "score", "criteria": ["lowest", ..., "highest"]}` (2–10 levels).
 - **Response:** `r.answers[id]` → choice: `.choice`, `.confidence`, `.probabilities`; noul: `.noul` (P(yes)); score: `.score`, `.confidence`, `.legend`, `.probabilities`. `r.usage.input_tokens`.
 - **`confidence` is rescaled**, not the raw probability: `(p_top − 1/n)/(1 − 1/n)`. Use `probabilities[choice]` for p_top. Measured in Phase 0 (4 options): English 0.785 (p 0.839), Hindi 0.563 (p 0.672), Hinglish 0.564 (p 0.673). A fixed 0.7 threshold on `confidence` would defer almost every Hindi/Hinglish request; tune in Phase 4.
+- **`noul` risk, measured live in Phase 2 (n=1 each, not tuned):** stub permanent delete 0.95–0.96; stub rename 0.47; list_dir / system_info 0.03. The plan's starting threshold of 0.3 therefore lifts even a harmless rename to approval. Tune in Phase 4.
 - Latency measured: ~1.2 s first call, ~0.35 s after (3 questions in one request, ~190 input tokens).
 
 ---

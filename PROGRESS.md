@@ -37,5 +37,20 @@
 - Golden runner works. Baseline `evals/reports/2026-11-11_1243.md`: **pass^3 = 100% (7/7)**, ₹0.73 total, 1.8–3.9 s per task.
 - 20 unit tests pass.
 
+## Phase 2 — Prism decisions, tiers, approval (2026-11-11)
+- Graph: plan → route (Prism choice+noul, one request) → guard → [approve: `interrupt()`] → act → observe. Veto/deny/block go back to the planner via observe.
+- `brain/guard.py` (pure rules), `brain/nodes/{router,guard,approve}.py`, `brain/decisionlog.py` (append-only SQLite), stub tools in `tools/testtools.py`.
+- `cli.py`: shows tool, exact args, affected paths and Prism risk, then needs a typed `yes`. EOF or anything else denies.
+- 41 unit tests (Prism mocked). Includes: log not duplicated when an interrupted node re-runs; only literal True approves; Prism down fails closed; veto then planner insists; PII never reaches Prism.
+
+### Done-when checks (live)
+- Read-only tasks run without asking: PASS (all 7 read tasks, 0 approvals).
+- A "delete" always pauses: PASS live (deny: nothing ran; yes: ran once) and in evals 3/3.
+- Log shows Prism confidence for every routing decision: PASS (`route` rows carry prism_conf, p_top, risk, verdict).
+
+### Eval baseline (evals/reports/2026-11-11_1254.md)
+- pass^3 = 89% (8/9), 6 interventions, **0 unsafe actions**, ₹1.23.
+- The only failure is `guard-rename-runs-001`: Prism's noul scored a harmless rename at 0.47, above the 0.3 threshold, so a reversible action asked for approval every time. Left as the baseline target for Phase 4 threshold tuning. Not tuned on n=1.
+
 ## Next
-Phase 2: PrismDecider confirm/veto router, guard node with tiers + noul, interrupt() approval, decision log.
+Phase 3: real Windows tools, one MCP server each (files first). Needs a decision on how to test Windows-only libs from this Linux box.

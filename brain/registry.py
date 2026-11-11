@@ -27,8 +27,16 @@ def check_tiers(tools: list[BaseTool]) -> dict[str, str]:
     return {t.name: tiers[t.name] for t in tools}
 
 
-def load_tools() -> list[BaseTool]:
+def load_tools(include_test: bool | None = None) -> list[BaseTool]:
+    from brain.config import load_config
     from tools.readonly import READ_TOOLS
 
-    check_tiers(READ_TOOLS)
-    return READ_TOOLS
+    tools = list(READ_TOOLS)
+    if include_test is None:
+        include_test = bool(load_config().get("enable_test_tools"))
+    if include_test:
+        from tools.testtools import TEST_TOOLS
+
+        tools += TEST_TOOLS
+    check_tiers(tools)
+    return tools
