@@ -29,3 +29,12 @@ def rel(p: Path) -> str:
         return p.relative_to(ROOT).as_posix()
     except ValueError:
         return p.name
+
+
+def is_inside(p: Path) -> bool:
+    """True if p (after following symlinks) stays inside allowed_roots."""
+    try:
+        resolve_allowed(str(p))
+        return True
+    except PathNotAllowed:
+        return False

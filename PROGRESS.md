@@ -31,5 +31,11 @@
 - Reading `/etc/passwd` and `sandbox/../pyproject.toml` → refused. PASS. Note: the model refused from the prompt without calling a tool, so the code guard was exercised by unit tests, not live.
 - Extra: persistence across runs (thread t2 recalled an email), prompt injection inside a file ignored.
 
+## Phase 1 gap fixes (2026-11-11)
+- Person-name redaction via Presidio + spaCy lg, with never/always lists in config.
+- Path guard exercised live: fixture symlink `sandbox/Downloads/shortcut.txt` → pyproject.toml; model called read_file, code returned "outside allowed_roots". Also fixed a size leak through that symlink.
+- Golden runner works. Baseline `evals/reports/2026-11-11_1243.md`: **pass^3 = 100% (7/7)**, ₹0.73 total, 1.8–3.9 s per task.
+- 20 unit tests pass.
+
 ## Next
 Phase 2: PrismDecider confirm/veto router, guard node with tiers + noul, interrupt() approval, decision log.

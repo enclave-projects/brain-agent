@@ -24,6 +24,8 @@ def main() -> None:
         p = d / name
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(b"\0" * size) if name != "notes.txt" else p.write_text("Buy milk.\n" * 200)
+    # Escape trap: looks like a harmless file inside Downloads, points outside the sandbox.
+    (d / "shortcut.txt").symlink_to(ROOT / "pyproject.toml")
     print(f"fixture ready at {d}")
 
 

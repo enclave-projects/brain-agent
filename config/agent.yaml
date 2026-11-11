@@ -18,3 +18,12 @@ data_dir: .brain-data   # Windows: set to %LOCALAPPDATA%/brain-agent
 # Until Phase 4 is green, real folders are stood in for by fixtures under sandbox/.
 aliases:
   Downloads: sandbox/Downloads
+privacy:
+  ner_model: en_core_web_lg       # spaCy model behind Presidio PERSON detection
+  ner_min_score: 0.5
+  always_redact: []               # names NER misses, e.g. your own: [Pranjal]
+  never_redact: [Downloads, Documents, Desktop, sandbox]   # words NER wrongly tags as people
+pricing_inr_per_1m:     # from docs/API_NOTES.md
+  deepseekv4.1-flash-1017: {input: 14, output: 55}
+  deepseekv4.1-flash-1017-interactive: {input: 25, output: 105}
+  sarvam-prism: {input: 4, output: 0}

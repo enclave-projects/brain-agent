@@ -118,3 +118,30 @@ def test_step_limit(dl, monkeypatch):
     llm = _Fake(messages=iter([_call("system_info", {}, i) for i in range(10)]))
     out = build_graph(llm).invoke({"messages": [HumanMessage("loop")], "step": 0})
     assert out["step"] == 3 and out["messages"][-1].content == STEP_LIMIT_MSG
+
+
+def test_person_names_redacted(monkeypatch):
+    import brain.privacy as pv
+
+    cfg = {**pv.load_config(), "privacy": {**pv.load_config()["privacy"], "always_redact": ["Pranjal"]}}
+    monkeypatch.setattr(pv, "load_config", lambda: cfg)
+    m = {}
+    s = "Pranjal says: send it to Rahul Sharma. Read sandbox/Downloads/Anjali_Gupta_invoice.pdf in my Downloads"
+    r = redact(s, m)
+    for name in ["Pranjal", "Rahul Sharma", "Anjali", "Gupta"]:
+        assert name not in r
+    assert "Downloads" in r and "sandbox" in r
+    assert restore(r, m) == s
+    assert redact(r, {}) == r
+
+
+def test_outside_symlink_not_leaked(dl):
+    (dl / "sandbox" / "Downloads" / "shortcut.txt").symlink_to(dl / "secret.txt")
+    entries = {e["name"]: e for e in list_dir.invoke({"path": "sandbox/Downloads"})["data"]["entries"]}
+    assert entries["shortcut.txt"] == {
+        "name": "shortcut.txt",
+        "type": "link-outside-allowed-roots",
+        "bytes": 0,
+    }
+    hits = search_files.invoke({"root": "sandbox", "pattern": "*.txt"})["data"]["matches"]
+    assert [h["path"] for h in hits] == ["sandbox/Downloads/a.txt"]

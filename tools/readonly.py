@@ -15,7 +15,7 @@ import psutil
 from langchain_core.tools import tool
 
 from brain.config import load_config
-from brain.paths import PathNotAllowed, allowed_roots, rel, resolve_allowed
+from brain.paths import PathNotAllowed, allowed_roots, is_inside, rel, resolve_allowed
 
 
 def _ok(data: Any) -> dict[str, Any]:
@@ -27,13 +27,18 @@ def _err(msg: str) -> dict[str, Any]:
 
 
 def _size(p: Path) -> int:
+    if not is_inside(p):
+        return 0
     if p.is_file():
         return p.stat().st_size
     total = 0
     for dirpath, _, files in os.walk(p):
         for f in files:
+            fp = Path(dirpath) / f
+            if fp.is_symlink() and not is_inside(fp):
+                continue
             try:
-                total += (Path(dirpath) / f).stat().st_size
+                total += fp.stat().st_size
             except OSError:
                 pass
     return total
@@ -47,7 +52,10 @@ def list_dir(path: str) -> dict[str, Any]:
         if not p.is_dir():
             return _err(f"{path} is not a folder")
         entries = [
-            {"name": c.name, "type": "dir" if c.is_dir() else "file", "bytes": _size(c)} for c in p.iterdir()
+            {"name": c.name, "type": "link-outside-allowed-roots", "bytes": 0}
+            if not is_inside(c)
+            else {"name": c.name, "type": "dir" if c.is_dir() else "file", "bytes": _size(c)}
+            for c in p.iterdir()
         ]
         entries.sort(key=lambda e: e["bytes"], reverse=True)
         return _ok(
@@ -86,8 +94,8 @@ def search_files(root: str, pattern: str) -> dict[str, Any]:
         hits = []
         for dirpath, _, files in os.walk(base):
             for f in files:
-                if fnmatch.fnmatch(f.lower(), pattern.lower()):
-                    fp = Path(dirpath) / f
+                fp = Path(dirpath) / f
+                if fnmatch.fnmatch(f.lower(), pattern.lower()) and is_inside(fp):
                     hits.append({"path": rel(fp), "bytes": fp.stat().st_size})
                     if len(hits) >= 200:
                         return _ok({"matches": hits, "truncated": True})
