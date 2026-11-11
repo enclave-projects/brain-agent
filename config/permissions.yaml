@@ -1,0 +1,2 @@
+# tool -> tier: read | reversible | irreversible. A tool without a tier must not load.
+tools: {}

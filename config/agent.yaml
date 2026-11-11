@@ -1,0 +1,15 @@
+models:
+  planner: deepseekv4.1-flash-1017
+  planner_interactive: deepseekv4.1-flash-1017-interactive
+  decider: sarvam-prism
+  stt: saaras:v4
+  tts: bulbul:v4-flash
+planner:
+  max_tokens: 4000
+  reasoning_effort: low
+thresholds:
+  route_confidence: 0.7
+  risk_noul: 0.3
+step_limit: 15
+allowed_roots:
+  - sandbox
