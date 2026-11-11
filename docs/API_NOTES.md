@@ -26,13 +26,14 @@ Source: https://docs.sarvam.ai/api/token-factory/models/deepseek-v4.1-flash-1017
 | Context | 1,048,576 tokens total (prompt + reasoning + output) |
 | Input | text, images as **base64 data URIs only** (URL → 400). No audio or video (400). |
 | Tools | OpenAI-style `tools`, `tool_choice` (`"required"` OK). Named `tool_choice` without `tools` → 400. `parallel_tool_calls` listed as `false` **[verify]** |
-| Reasoning | `reasoning_effort`: `"none"`, `"low"`, `"high"` (**default**), `"max"`. Must be a string. Reasoning text comes back in `reasoning_content`. |
+| Reasoning | `reasoning_effort`: `"none"`, `"low"`, `"medium"` (in SDK type), `"high"` (**default**), `"max"`. Must be a string. Reasoning text comes back in `reasoning_content`. |
 | Price / 1M tokens | base: ₹14 in, ₹0.25 cached, ₹55 out. interactive: ₹25 / ₹0.5 / ₹105. Reasoning is billed as output. |
 | Body limit | 32 MiB (413) |
 | `n` > 1 | 400 |
 
 ```python
 from sarvamai import SarvamAI
+
 client = SarvamAI(api_subscription_key=KEY)
 r = client.chat.completions_v2(
     model="deepseekv4.1-flash-1017",
@@ -49,6 +50,7 @@ text = r.choices[0].message.content
   - Always set `max_tokens`.
   - Treat `content is None` as retryable: retry once with a larger `max_tokens` or lower effort.
 - Default effort is `high`, which is slow and costly. Use `low` for routine steps and `high` only for re-planning after a mismatch.
+- **Confirmed live (2026-11-11):** `max_tokens=50` + `effort=high` returns HTTP 200, `content=None`, `finish_reason=length`. Retry at 2x tokens + `low` recovered.
 - Disable thinking with `reasoning_effort="none"`. The alternatives are `thinking={"type":"disabled"}` or `chat_template_kwargs={"enable_thinking": False}` via `extra_body`.
 - **LangChain:** `ChatSarvam` (`langchain-sarvam`) officially lists only `sarvam-105b` and defaults to the `/v1` base URL. We use our own `SarvamChatModel` wrapper over `completions_v2`. See `docs/DECISIONS.md`.
 
@@ -89,7 +91,13 @@ Source: https://docs.sarvam.ai/api/token-factory/models/sarvam-prism
 - Answers always have a valid shape but can still be wrong. Gate on `confidence` (start at 0.7 and tune in Phase 4).
 - Ask several questions in **one request**, since the state is billed once.
 - Prism never overrides `permissions.yaml`. It can only make a decision stricter.
-- Exact request JSON shape for `questions` (keys, option format): copy it from the docs page before coding **[verify]**.
+- **Request shape (confirmed from SDK types + live call, 2026-11-11):**
+  `questions={"id": {"type": "choice", "criteria": {"option_id": "when it applies", ...}, "instructions": "..."}}`
+  `{"type": "noul", "instructions": "..."}` (optional `criteria` with keys `true`/`false`)
+  `{"type": "score", "criteria": ["lowest", ..., "highest"]}` (2–10 levels).
+- **Response:** `r.answers[id]` → choice: `.choice`, `.confidence`, `.probabilities`; noul: `.noul` (P(yes)); score: `.score`, `.confidence`, `.legend`, `.probabilities`. `r.usage.input_tokens`.
+- **`confidence` is rescaled**, not the raw probability: `(p_top − 1/n)/(1 − 1/n)`. Use `probabilities[choice]` for p_top. Measured in Phase 0 (4 options): English 0.785 (p 0.839), Hindi 0.563 (p 0.672), Hinglish 0.564 (p 0.673). A fixed 0.7 threshold on `confidence` would defer almost every Hindi/Hinglish request; tune in Phase 4.
+- Latency measured: ~1.2 s first call, ~0.35 s after (3 questions in one request, ~190 input tokens).
 
 ---
 
@@ -104,12 +112,14 @@ Source: https://docs.sarvam.ai/api/getting-started/models/saaras/llms.txt
 - Raw PCM needs `input_audio_codec` and 16 kHz audio.
 - Keyterm prompting: up to 50 terms, v4 only, REST/Batch only (not streaming).
 - Pricing and rate limits: see the pricing page **[verify]**.
+- **Confirmed live:** `client.speech_to_text.transcribe(file=f, model="saaras:v4", mode="transcribe")` → `.transcript`, `.language_code`. Round trip of a TTS clip gave an exact transcript in 2.2 s.
 
 ## Bulbul v4 Flash — text to speech (Phase 7)
 
 Source: https://www.sarvam.ai/blogs/bulbul-v4-flash/
 
 - Model: `bulbul:v4-flash`.
+- **Confirmed live:** `client.text_to_speech.convert(text=..., language_code="en-IN", model="bulbul:v4-flash")` → `.audios[0]` is base64 WAV (22050 Hz default). 78 chars took 3.2 s. `convert_stream` also exists in the SDK. Pitch/loudness are not supported on v3/v4-flash; pace 0.5–2.0.
 - REST, HTTP streaming and WebSocket options exist. Which apply to v4 Flash, plus voices, languages and parameters, aren't confirmed here **[verify]**. Read the "Best Practice Guide for Bulbul v4 Flash" in the Sarvam docs before Phase 7.
 
 ---

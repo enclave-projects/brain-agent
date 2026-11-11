@@ -1,6 +1,6 @@
 models:
   planner: deepseekv4.1-flash-1017
-  planner_interactive: deepseekv4.1-flash-1017-interactive
+  planner_fast: deepseekv4.1-flash-1017-interactive
   decider: sarvam-prism
   stt: saaras:v4
   tts: bulbul:v4-flash

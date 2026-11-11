@@ -37,6 +37,7 @@ Source: [Sarvam model page](https://docs.sarvam.ai/api/token-factory/models/deep
 **SDK call**
 ```python
 from sarvamai import SarvamAI
+
 client = SarvamAI(api_subscription_key=KEY)
 r = client.chat.completions_v2(
     model="deepseekv4.1-flash-1017",
